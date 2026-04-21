@@ -532,7 +532,7 @@ final_spec
 Now that we determined our best model, let's do our **last fit**.
 
 This means 2 things:  
-  - Traninig the optimum hyperparameter values on the **entire training set**  
+  - Training the optimum hyperparameter values on the **entire training set**  
   - Using it to **predict** on the **test set**  
 
 These 2 steps can be completed in one function, as below:  
@@ -549,35 +549,43 @@ final_fit %>%
 ### Test set  
 Confusion matrix on **test set**:  
 ```{r}
-
-  
+final_fit %>%
+  collect_predictions() %>%
+  conf_mat(truth = strength_gtex_class, 
+           estimate = .pred_class) %>%
+  autoplot(type = "heatmap")
 ```
 
 Metrics on the **test set**:
 ```{r}
+final_fit %>%
+  collect_metrics()
 
 ```
+
 Let's hand-calculate accuracy:  
 ```{r}
 #  Numerator: number of correctly classified (the diagonal)
-numerator 
-
+numerator <- 45+32+30
 # Denominator: number of all observations  
-denominator 
+denominator <- 45+20+6+20+32+18+14+26+30
+
+numerator/denominator
 
 ```
 
 Let's plot ROC on **test set**:  
 ```{r}
+library(ggplot2)
 final_fit %>%
   collect_predictions(parameters = best_roc) %>% 
   roc_curve(strength_gtex_class, 
             .pred_Low,
             .pred_Medium,
             .pred_High) %>%
-ggplot(aes(x = ..., 
-           y = ..., 
-           color = ...)) +
+ggplot(aes(x = 1-specificity, 
+           y = sensitivity, 
+           color = .level)) +
   geom_line(size = 1.2) +
   geom_abline(linetype = "dashed") +
   coord_equal() +
@@ -592,7 +600,6 @@ ggplot(aes(x = ...,
 ```
 
 
-
 ### Train set  
 Confusion matrix on **train set**:  
 ```{r}
@@ -604,8 +611,8 @@ final_spec %>%
                           weather_train)) %>%
   conf_mat(truth = strength_gtex_class,
            estimate = .pred_class
-          )
-  
+          )%>%
+   autoplot(type = "heatmap")
 ```
 
 
@@ -616,10 +623,14 @@ final_spec %>%
       data = bake(weather_prep, 
                   weather_train)) %>%
   augment(new_data = bake(weather_prep, 
-                          weather_train)) 
+                          weather_train)) %>%
+  accuracy(truth = strength_gtex_class,
+           estimate = .pred_class)
 
 ```
+
 How does metrics on test compare to metrics on train?  
+
 ROC plot for **train set**:  
 ```{r}
 final_spec %>%
@@ -648,6 +659,8 @@ ggplot(aes(x = 1 - specificity,
   
 ```
 
+All three lines are overlapping so we only see the blue line. 
+
 ### Variable importance 
 
 The importance metric we are evaluating here is **permutation**. 
@@ -662,7 +675,7 @@ The variables with the **largest average decrease in accuracy** are considered *
 
 ```{r}
 final_spec %>%
-  fit(... ~ .,
+  fit(strength_gtex_class ~ .,
          data = bake(weather_prep, 
                      weather_train)) %>%
     vi() %>%
